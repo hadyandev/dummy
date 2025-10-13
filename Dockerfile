@@ -1,9 +1,5 @@
 FROM php:8.2-fpm
 
-# Arguments for user ID and group ID
-ARG UID=1000
-ARG GID=1000
-
 # Set working directory
 WORKDIR /var/www
 
@@ -32,39 +28,30 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Copy existing application directory contents
 COPY . /var/www
 
-# Copy existing application directory permissions
-COPY --chown=www-data:www-data . /var/www
-
 # Create necessary directories with proper permissions
 RUN mkdir -p /var/www/vendor /var/www/bootstrap/cache /var/www/storage \
     && chown -R www-data:www-data /var/www \
-    && chmod -R 755 /var/www/storage /var/www/bootstrap/cache
+    && chmod -R 775 /var/www/storage /var/www/bootstrap/cache
 
-# Install composer dependencies as root first
+# Install composer dependencies as www-data user
+USER www-data
 RUN composer install --optimize-autoloader --no-dev --no-interaction
 
 # Install npm dependencies and build assets
 RUN npm install && npm run build
 
-# Create user with same UID/GID as host user
-RUN groupadd -g ${GID} laravel \
-    && useradd -u ${UID} -g ${GID} -m laravel \
-    && usermod -aG www-data laravel
+# Switch back to root to copy entrypoint
+USER root
 
-# Copy entrypoint script
-COPY docker/scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
+# Copy entrypoint script (if exists)
+COPY --chmod=755 docker/scripts/entrypoint.sh /usr/local/bin/entrypoint.sh 2>/dev/null || true
 
-# Change ownership after installation
-RUN chown -R ${UID}:${GID} /var/www \
-    && chmod -R 755 /var/www/storage /var/www/bootstrap/cache
+# Ensure www-data owns everything
+RUN chown -R www-data:www-data /var/www
 
-# Create laravel user with proper UID/GID (will be fixed by entrypoint if needed)
-RUN groupadd -g ${GID} laravel 2>/dev/null || true \
-    && useradd -u ${UID} -g ${GID} -m laravel 2>/dev/null || true \
-    && usermod -aG www-data laravel
+# Switch to www-data user for running the application
+USER www-data
 
 # Set entrypoint and default command
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 EXPOSE 9000
 CMD ["php-fpm"]

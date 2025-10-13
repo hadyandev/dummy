@@ -5,16 +5,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        UID: ${UID:-1000}
-        GID: ${GID:-1000}
     image: dummy-app
     container_name: dummy_app
     restart: unless-stopped
     working_dir: /var/www
-    environment:
-      - UID=${UID:-1000}
-      - GID=${GID:-1000}
     volumes:
       - ./:/var/www
       - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
@@ -57,16 +51,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        UID: ${UID:-1000}
-        GID: ${GID:-1000}
     image: dummy-app
     container_name: dummy_queue
     restart: unless-stopped
     working_dir: /var/www
-    environment:
-      - UID=${UID:-1000}
-      - GID=${GID:-1000}
     volumes:
       - ./:/var/www
       - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
@@ -83,16 +71,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        UID: ${UID:-1000}
-        GID: ${GID:-1000}
     image: dummy-app
     container_name: dummy_scheduler
     restart: unless-stopped
     working_dir: /var/www
-    environment:
-      - UID=${UID:-1000}
-      - GID=${GID:-1000}
     volumes:
       - ./:/var/www
       - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
