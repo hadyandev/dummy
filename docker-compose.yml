@@ -1,0 +1,114 @@
+version: "3.8"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    image: dummy-app
+    container_name: dummy_app
+    restart: unless-stopped
+    working_dir: /var/www
+    environment:
+      - UID=${UID:-1000}
+      - GID=${GID:-1000}
+    volumes:
+      - ./:/var/www
+      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - dummy
+
+  webserver:
+    image: nginx:alpine
+    container_name: dummy_webserver
+    restart: unless-stopped
+    ports:
+      - "${WEBSERVER_PORT:-8080}:80"
+    volumes:
+      - ./:/var/www
+      - ./docker/nginx:/etc/nginx/conf.d
+    networks:
+      - dummy
+    depends_on:
+      - app
+
+  db:
+    image: postgres:16-alpine
+    container_name: dummy_db
+    restart: unless-stopped
+    ports:
+      - "${DB_PORT_EXTERNAL:-5433}:5432"
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-dummy}
+      POSTGRES_USER: ${DB_USERNAME:-dummy}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-dummy}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    networks:
+      - dummy
+
+  queue:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    image: dummy-app
+    container_name: dummy_queue
+    restart: unless-stopped
+    working_dir: /var/www
+    environment:
+      - UID=${UID:-1000}
+      - GID=${GID:-1000}
+    volumes:
+      - ./:/var/www
+      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: sh -c "sleep 10 && /usr/local/bin/entrypoint.sh php artisan queue:work --verbose --tries=3 --timeout=90 --sleep=3 --max-jobs=1000 --max-time=3600"
+    networks:
+      - dummy
+    depends_on:
+      - db
+      - app
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    image: dummy-app
+    container_name: dummy_scheduler
+    restart: unless-stopped
+    working_dir: /var/www
+    environment:
+      - UID=${UID:-1000}
+      - GID=${GID:-1000}
+    volumes:
+      - ./:/var/www
+      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: sh -c "/usr/local/bin/entrypoint.sh sh -c 'while true; do php artisan schedule:run --verbose --no-interaction & sleep 60; done'"
+    networks:
+      - dummy
+    depends_on:
+      - db
+      - app
+
+networks:
+  dummy:
+    driver: bridge
+
+volumes:
+  dbdata:
+    driver: local
