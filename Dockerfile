@@ -40,11 +40,12 @@ RUN composer install --optimize-autoloader --no-dev --no-interaction
 # Install npm dependencies and build assets
 RUN npm install && npm run build
 
-# Switch back to root to copy entrypoint
+# Switch back to root for final setup
 USER root
 
-# Copy entrypoint script (if exists)
-COPY --chmod=755 docker/scripts/entrypoint.sh /usr/local/bin/entrypoint.sh 2>/dev/null || true
+# Copy entrypoint script and set permissions
+COPY docker/scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # Ensure www-data owns everything
 RUN chown -R www-data:www-data /var/www
@@ -54,4 +55,5 @@ USER www-data
 
 # Set entrypoint and default command
 EXPOSE 9000
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["php-fpm"]
