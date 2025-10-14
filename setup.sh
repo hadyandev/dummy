@@ -21,6 +21,22 @@ else
     echo "✅ .env file already exists"
 fi
 
+# Fix permissions on host (required for www-data to write)
+echo "🔧 Fixing file permissions for www-data user..."
+sudo chown -R 33:33 . 2>/dev/null || {
+    echo "⚠️  Cannot use sudo. Trying without..."
+    chown -R 33:33 . 2>/dev/null || {
+        echo "⚠️  Cannot fix permissions automatically."
+        echo "💡 Please run manually: sudo chown -R 33:33 ."
+        echo "   (33:33 = www-data user in container)"
+        read -p "Continue anyway? (y/N) " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            exit 1
+        fi
+    }
+}
+
 # Stop existing containers
 echo "🛑 Stopping existing containers..."
 docker-compose down 2>/dev/null || echo "ℹ️  No containers to stop"

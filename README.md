@@ -8,46 +8,49 @@ A complete Laravel development environment using Docker with PostgreSQL, Nginx, 
 
 - Docker & Docker Compose installed
 - Git
+- Sudo access (for fixing permissions)
 
 ### One-Command Setup
 
 ```bash
 git clone <repository-url>
 cd dummy-izin
-chmod +x setup.sh
-./setup.sh
+
+# IMPORTANT: Fix permissions first!
+sudo chown -R 33:33 .
+
+# Run setup
+make setup
 ```
 
-That's it! The setup script will automatically handle permissions and configuration.
+**That's it!** Application will be available at http://localhost:8090
 
-### Manual Setup
+### Why chown to 33:33?
 
-If you prefer manual setup:
+Container runs as `www-data` user (UID 33). Volume mount makes your host files accessible in container, but ownership stays as your user (UID 1000). www-data cannot write to files owned by 1000, so we change ownership to 33:33 on host.
 
-1. **Clone and prepare environment:**
-   ```bash
-   git clone <repository-url>
-   cd dummy-izin
-   cp .env.docker .env
-   ```
+### Alternative Setup Methods
 
-2. **Update user permissions in .env:**
-   ```bash
-   # Get your current UID and GID
-   id
-   
-   # Edit .env file and set:
-   UID=1000  # Replace with your UID
-   GID=1000  # Replace with your GID
-   ```
+**Option 1: Using setup script**
+```bash
+./setup.sh  # Auto fix permissions + setup
+```
 
-3. **Start containers:**
-   ```bash
-   docker-compose up --build -d
-   ```
+**Option 2: Using Makefile**
+```bash
+make setup  # Auto fix permissions + setup
+```
 
-4. **Run Laravel setup:**
-   ```bash
+**Option 3: Manual (if no sudo)**
+```bash
+# Ask server admin to run:
+sudo chown -R 33:33 /path/to/project
+
+# Then you can:
+docker-compose build --no-cache app
+docker-compose up -d
+docker-compose exec app php artisan migrate --force
+```
    docker-compose exec app php artisan migrate
    docker-compose exec app php artisan key:generate
    ```

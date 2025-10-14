@@ -36,7 +36,12 @@ help: ## Show this help message
 
 setup: ## Run initial setup (build and start containers)
 	@echo "$(GREEN)🚀 Running Docker setup...$(RESET)"
-	@echo "$(BLUE)📦 Building Docker images...$(RESET)"
+	@echo "$(BLUE)� Fixing permissions on host...$(RESET)"
+	@sudo chown -R 33:33 . 2>/dev/null || { \
+		echo "$(YELLOW)⚠️  Cannot fix permissions with sudo, trying without...$(RESET)"; \
+		chown -R 33:33 . 2>/dev/null || echo "$(YELLOW)⚠️  Permission fix skipped$(RESET)"; \
+	}
+	@echo "$(BLUE)�📦 Building Docker images...$(RESET)"
 	docker-compose build --no-cache app
 	@echo "$(BLUE)🐳 Starting containers...$(RESET)"
 	docker-compose up -d
@@ -149,6 +154,23 @@ npm: ## Run npm command (use: make npm CMD="install")
 fresh: ## Fresh database migration with seeding
 	@echo "$(GREEN)🗄️ Fresh database migration...$(RESET)"
 	docker-compose exec app php artisan migrate:fresh --seed
+
+fix-permissions: ## Fix file ownership for www-data (requires sudo)
+	@echo "$(YELLOW)🔧 Fixing file permissions...$(RESET)"
+	@sudo chown -R 33:33 . 2>/dev/null || { \
+		echo "$(YELLOW)⚠️  Cannot use sudo. Trying without...$(RESET)"; \
+		chown -R 33:33 . 2>/dev/null || { \
+			echo "$(RED)❌ Cannot fix permissions. Try manually:$(RESET)"; \
+			echo "$(BLUE)   sudo chown -R 33:33 .$(RESET)"; \
+			exit 1; \
+		}; \
+	}
+	@echo "$(GREEN)✅ Permissions fixed! (UID:33, GID:33 = www-data)$(RESET)"
+	@echo "$(BLUE)💡 Now run: make start$(RESET)"
+
+composer-install: ## Manually install composer dependencies
+	@echo "$(GREEN)📦 Installing Composer dependencies...$(RESET)"
+	docker-compose exec app composer install --optimize-autoloader --no-interaction
 
 clean: ## Clean up containers, images, and volumes
 	@echo "$(RED)🧹 Cleaning up Docker resources...$(RESET)"
