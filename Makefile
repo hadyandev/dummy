@@ -34,10 +34,21 @@ help: ## Show this help message
 	@echo "  make logs      # View container logs"
 	@echo "  make shell     # Access Dummy container"
 
-setup: ## Run initial setup (handles permissions automatically)
-	@echo "$(GREEN)🚀 Running Dummy Docker setup...$(RESET)"
-	chmod +x setup.sh
-	./setup.sh
+setup: ## Run initial setup (build and start containers)
+	@echo "$(GREEN)🚀 Running Docker setup...$(RESET)"
+	@echo "$(BLUE)📦 Building Docker images...$(RESET)"
+	docker-compose build --no-cache app
+	@echo "$(BLUE)🐳 Starting containers...$(RESET)"
+	docker-compose up -d
+	@echo "$(BLUE)⏳ Waiting for database to be ready...$(RESET)"
+	@sleep 10
+	@echo "$(BLUE)📊 Running migrations...$(RESET)"
+	docker-compose exec app php artisan migrate --force || echo "⚠️  Migration failed or already ran"
+	@echo "$(GREEN)✅ Setup complete!$(RESET)"
+	@echo ""
+	@echo "$(BLUE)🌐 Application URL: http://localhost:${WEBSERVER_PORT:-8090}$(RESET)"
+	@echo "$(BLUE)🗄️  Database: PostgreSQL on port ${DB_PORT_EXTERNAL:-5433}$(RESET)"
+	@echo ""
 
 start: ## Start Docker containers
 	@echo "$(GREEN)🐳 Starting Docker containers...$(RESET)"
@@ -56,9 +67,8 @@ build: ## Rebuild Docker containers
 	docker-compose up --build -d
 
 logs: ## View container logs
-	logs: ## Show application logs
-	@echo "$(BLUE)� Showing application logs...$(RESET)"
-	docker-compose exec app tail -f storage/logs/laravel.log
+	@echo "$(BLUE)📋 Showing container logs...$(RESET)"
+	docker-compose logs -f app
 
 shell: ## Access container shell
 	@echo "$(BLUE)🐚 Opening container shell...$(RESET)"
@@ -83,11 +93,9 @@ status: ## Show container status
 	@echo "$(BLUE)📊 Container Status:$(RESET)"
 	docker-compose ps
 
-shell: ## Access app container shell
-	@echo "$(GREEN)🐚 Accessing app container...$(RESET)"
-	docker-compose exec app bash
-
 migrate: ## Run database migrations
+	@echo "$(GREEN)📊 Running database migrations...$(RESET)"
+	docker-compose exec app php artisan migrate
 	@echo "$(GREEN)📊 Running database migrations...$(RESET)"
 	docker-compose exec app php artisan migrate
 
@@ -142,23 +150,6 @@ fresh: ## Fresh database migration with seeding
 	@echo "$(GREEN)🗄️ Fresh database migration...$(RESET)"
 	docker-compose exec app php artisan migrate:fresh --seed
 
-fix-permissions: ## Fix file permissions (both host and container)
-	@echo "$(YELLOW)🔧 Fixing host file permissions...$(RESET)"
-	sudo chown -R $(shell id -u):$(shell id -g) .
-	@echo "$(YELLOW)🔧 Fixing container file permissions...$(RESET)"
-	docker-compose exec app chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache || echo "Container not running"
-	docker-compose exec app chmod -R 775 /var/www/storage /var/www/bootstrap/cache || echo "Container not running"
-	@echo "$(GREEN)✅ All permissions fixed!$(RESET)"
-
-fix-host-permissions: ## Fix host file permissions only
-	@echo "$(YELLOW)🔧 Fixing host file permissions...$(RESET)"
-	sudo chown -R $(shell id -u):$(shell id -g) .
-	@echo "$(GREEN)✅ Host permissions fixed!$(RESET)"
-
-fix-ownership: ## Fix file ownership issues (comprehensive)
-	@echo "$(YELLOW)🔧 Running comprehensive ownership fix...$(RESET)"
-	./fix-ownership.sh
-
 clean: ## Clean up containers, images, and volumes
 	@echo "$(RED)🧹 Cleaning up Docker resources...$(RESET)"
 	docker-compose down -v --remove-orphans
@@ -166,34 +157,29 @@ clean: ## Clean up containers, images, and volumes
 
 health: ## Check application health
 	@echo "$(BLUE)🏥 Checking application health...$(RESET)"
-	@curl -s http://localhost:8080/api/status | jq . || curl http://localhost:8080/api/status
+	@curl -s http://localhost:${WEBSERVER_PORT:-8090}/api/health | jq . || curl http://localhost:${WEBSERVER_PORT:-8090}/api/health || echo "⚠️  Health endpoint not available"
 	@echo ""
-	@echo "$(GREEN)✅ Application is healthy!$(RESET)"
 
 db-shell: ## Access database shell
 	@echo "$(GREEN)🗄️ Accessing PostgreSQL shell...$(RESET)"
-	docker-compose exec db psql -U laravel -d laravel
+	docker-compose exec db psql -U ${DB_USERNAME:-dummy} -d ${DB_DATABASE:-dummy}
 
 backup-db: ## Backup database
 	@echo "$(BLUE)💾 Creating database backup...$(RESET)"
-	docker-compose exec db pg_dump -U laravel laravel > backup_$(shell date +%Y%m%d_%H%M%S).sql
+	docker-compose exec db pg_dump -U ${DB_USERNAME:-dummy} ${DB_DATABASE:-dummy} > backup_$(shell date +%Y%m%d_%H%M%S).sql
 	@echo "$(GREEN)✅ Database backup created!$(RESET)"
-
-install: setup ## Alias for setup
 
 info: ## Show application information
 	@echo "$(BLUE)ℹ️  Dummy Izin Docker Environment Information$(RESET)"
 	@echo ""
 	@echo "$(GREEN)📱 Application URLs:$(RESET)"
-	@echo "  🌐 Dummy Izin App: http://localhost:8080"
-	@echo "  🔌 API Status:  http://localhost:8080/api/status"
+	@echo "  🌐 Web App: http://localhost:${WEBSERVER_PORT:-8090}"
 	@echo ""
 	@echo "$(GREEN)🗄️ Database Connection:$(RESET)"
 	@echo "  📍 Host:     localhost"
-	@echo "  🔌 Port:     3306 (mapped from 5432)"
-	@echo "  💾 Database: laravel"
-	@echo "  👤 Username: laravel"
-	@echo "  🔑 Password: laravel"
+	@echo "  🔌 Port:     ${DB_PORT_EXTERNAL:-5433}"
+	@echo "  💾 Database: ${DB_DATABASE:-dummy}"
+	@echo "  👤 Username: ${DB_USERNAME:-dummy}"
 	@echo "  🔧 Driver:   PostgreSQL"
 	@echo ""
 	@echo "$(GREEN)📋 Container Status:$(RESET)"
