@@ -20,13 +20,22 @@ if [ "$1" = 'php-fpm' ]; then
     git config --global --add safe.directory /var/www 2>/dev/null || true
     git config --global --add safe.directory '*' 2>/dev/null || true
     
-    # Create Laravel directories (these are bind-mounted, might have permission issues)
-    echo "📁 Creating Laravel directories..."
-    mkdir -p /var/www/storage/logs 2>/dev/null || true
-    mkdir -p /var/www/storage/framework/cache 2>/dev/null || true
-    mkdir -p /var/www/storage/framework/sessions 2>/dev/null || true
-    mkdir -p /var/www/storage/framework/views 2>/dev/null || true
-    mkdir -p /var/www/bootstrap/cache 2>/dev/null || true
+    # Create Laravel directory structure
+    # Storage and bootstrap/cache are in Docker volumes, so www-data has full access
+    echo "📁 Creating Laravel directory structure..."
+    mkdir -p /var/www/storage/app/public
+    mkdir -p /var/www/storage/logs
+    mkdir -p /var/www/storage/framework/cache/data
+    mkdir -p /var/www/storage/framework/sessions
+    mkdir -p /var/www/storage/framework/testing
+    mkdir -p /var/www/storage/framework/views
+    mkdir -p /var/www/bootstrap/cache
+    
+    # Set proper permissions (www-data owns these volumes)
+    chmod -R 775 /var/www/storage
+    chmod -R 775 /var/www/bootstrap/cache
+    
+    echo "✅ Directory structure ready"
     
     # Install composer dependencies if vendor folder is empty
     # Vendor is in Docker volume, so www-data always has write access

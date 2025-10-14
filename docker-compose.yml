@@ -11,7 +11,9 @@ services:
     working_dir: /var/www
     volumes:
       - ./:/var/www
-      - vendor:/var/www/vendor  # Separate volume for vendor (avoid permission issues)
+      - vendor:/var/www/vendor                    # Vendor in Docker volume
+      - storage:/var/www/storage                  # Storage in Docker volume
+      - bootstrap_cache:/var/www/bootstrap/cache  # Bootstrap cache in Docker volume
       - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -58,7 +60,9 @@ services:
     working_dir: /var/www
     volumes:
       - ./:/var/www
-      - vendor:/var/www/vendor  # Share vendor volume with app
+      - vendor:/var/www/vendor                    # Share vendor volume
+      - storage:/var/www/storage                  # Share storage volume
+      - bootstrap_cache:/var/www/bootstrap/cache  # Share bootstrap cache volume
       - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -79,7 +83,9 @@ services:
     working_dir: /var/www
     volumes:
       - ./:/var/www
-      - vendor:/var/www/vendor  # Share vendor volume with app
+      - vendor:/var/www/vendor                    # Share vendor volume
+      - storage:/var/www/storage                  # Share storage volume
+      - bootstrap_cache:/var/www/bootstrap/cache  # Share bootstrap cache volume
       - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -99,4 +105,7 @@ volumes:
     driver: local
   vendor:  # Named volume for composer dependencies
     driver: local
+  storage:  # Named volume for storage (logs, uploads, etc)
+    driver: local
+  bootstrap_cache:  # Named volume for bootstrap cache
     driver: local
