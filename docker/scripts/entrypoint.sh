@@ -2,9 +2,9 @@
 
 # Laravel Docker Container Entrypoint
 # Simple entrypoint for www-data user (non-root)
+# Vendor is in separate Docker volume - no permission issues!
 
-# Don't exit on error for initial setup commands
-set +e
+set -e
 
 echo "🐳 Starting Laravel container..."
 
@@ -20,48 +20,26 @@ if [ "$1" = 'php-fpm' ]; then
     git config --global --add safe.directory /var/www 2>/dev/null || true
     git config --global --add safe.directory '*' 2>/dev/null || true
     
-    # Try to create directories - ignore errors if permissions don't allow
+    # Create Laravel directories (these are bind-mounted, might have permission issues)
     echo "📁 Creating Laravel directories..."
     mkdir -p /var/www/storage/logs 2>/dev/null || true
     mkdir -p /var/www/storage/framework/cache 2>/dev/null || true
     mkdir -p /var/www/storage/framework/sessions 2>/dev/null || true
     mkdir -p /var/www/storage/framework/views 2>/dev/null || true
     mkdir -p /var/www/bootstrap/cache 2>/dev/null || true
-    mkdir -p /var/www/vendor 2>/dev/null || true
     
-    # Check if vendor folder needs installation
-    if [ ! -d "/var/www/vendor" ] || [ ! -f "/var/www/vendor/autoload.php" ]; then
+    # Install composer dependencies if vendor folder is empty
+    # Vendor is in Docker volume, so www-data always has write access
+    if [ ! -f "/var/www/vendor/autoload.php" ]; then
         echo "📦 Installing Composer dependencies..."
-        
-        # Try to create vendor directory with proper approach
-        if [ ! -d "/var/www/vendor" ]; then
-            echo "⚠️  Vendor directory doesn't exist, attempting to create..."
-            mkdir -p /var/www/vendor 2>/dev/null || {
-                echo "❌ Cannot create vendor directory due to permissions"
-                echo "� Please run: docker-compose exec -u root app chown -R www-data:www-data /var/www"
-                echo "⚠️  Continuing without composer install..."
-            }
-        fi
-        
-        # Only run composer if we can write to /var/www
-        if [ -w "/var/www" ]; then
-            cd /var/www && composer install --optimize-autoloader --no-interaction 2>&1 || {
-                echo "⚠️  Composer install failed. This might be due to permissions."
-                echo "💡 You can manually run: docker-compose exec app composer install"
-            }
-        else
-            echo "⚠️  /var/www is not writable by www-data, skipping composer install"
-            echo "💡 Fix permissions on host: sudo chown -R 33:33 ."
-        fi
+        cd /var/www && composer install --optimize-autoloader --no-interaction
+        echo "✅ Composer dependencies installed"
     else
-        echo "✅ Vendor folder exists with autoload.php, skipping composer install"
+        echo "✅ Vendor folder ready"
     fi
     
     echo "✅ Container initialization complete"
 fi
-
-# Re-enable exit on error for main command
-set -e
 
 # Execute the main command
 exec "$@"

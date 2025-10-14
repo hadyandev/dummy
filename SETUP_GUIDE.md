@@ -6,54 +6,56 @@ Setup sudah disederhanakan untuk **tidak memerlukan** sudo atau berurusan dengan
 
 ## 🚀 Quick Start
 
-### ⚠️ IMPORTANT: Fix Permissions First!
+### ✅ ZERO Configuration Required!
 
-**Sebelum menjalankan setup**, fix ownership file di host agar www-data (UID 33) bisa write:
+**NO sudo needed!** **NO permission fixes!** Just run:
 
 ```bash
-# WAJIB dijalankan sekali sebelum setup pertama kali
-sudo chown -R 33:33 .
-```
-
-**Kenapa perlu?** Container run sebagai `www-data` (UID 33), tapi file di host owned by user Anda. Tanpa fix ini, composer install akan gagal.
-
-### Opsi 1: Menggunakan Makefile (Recommended)
-```bash
-# Auto fix permissions + setup
 make setup
-```
-
-### Opsi 2: Menggunakan Script
-```bash
-# Auto fix permissions + setup
+# or
 ./setup.sh
 ```
 
-### Opsi 3: Manual
-```bash
-# 1. Fix permissions first
-sudo chown -R 33:33 .
+**Why no permissions needed?**
+- Vendor folder menggunakan **Docker named volume**
+- Volume di-manage oleh Docker, bukan bind-mount dari host
+- www-data user selalu punya write access ke Docker volume
+- File source code tetap di host (bisa edit normal)
 
-# 2. Build image
+### Opsi Setup
+
+**Opsi 1: Menggunakan Makefile (Recommended)**
+```bash
+make setup
+```
+
+**Opsi 2: Menggunakan Script**
+```bash
+./setup.sh
+```
+
+**Opsi 3: Manual**
+```bash
+# Build image
 docker-compose build --no-cache app
 
-# 3. Start containers
+# Start containers
 docker-compose up -d
 
-# 4. Run migrations
+# Run migrations
 docker-compose exec app php artisan migrate --force
 ```
 
 ## 📋 Apa yang Dilakukan Setup?
 
-1. ✅ **Fix permissions** - Chown ke 33:33 (www-data) di host
-2. ✅ **Cek/Create .env** - Copy dari .env.example jika belum ada
-3. ✅ **Stop containers lama** - Clean slate
-4. ✅ **Build Docker images** - Fresh build dengan www-data user
-5. ✅ **Start containers** - Up semua services
-6. ✅ **Wait database** - Tunggu PostgreSQL ready (max 60 detik)
-7. ✅ **Clear caches** - Bersihkan Laravel caches
-8. ✅ **Run migrations** - Setup database schema
+1. ✅ **Cek/Create .env** - Copy dari .env.example jika belum ada
+2. ✅ **Stop containers lama** - Clean slate
+3. ✅ **Build Docker images** - Fresh build dengan www-data user
+4. ✅ **Start containers** - Up semua services (vendor volume auto-created)
+5. ✅ **Composer install** - Auto-install ke Docker volume (entrypoint)
+6. ✅ **Wait database** - Tunggu PostgreSQL ready
+7. ✅ **Run migrations** - Setup database schema
+8. ✅ **Clear caches** - Bersihkan Laravel caches
 9. ✅ **Check APP_KEY** - Generate jika belum ada
 10. ✅ **Create storage link** - Symbolic link untuk public storage
 
@@ -61,18 +63,17 @@ docker-compose exec app php artisan migrate --force
 
 ### Setup & Management
 ```bash
-make setup          # Initial setup (auto fix permissions + build + start + migrate)
+make setup          # Initial setup (build + start + migrate)
 make start          # Start all containers
 make stop           # Stop all containers
 make restart        # Restart all containers
 make build          # Rebuild containers
-make clean          # Stop and remove containers + volumes
+make clean          # Stop and remove containers + volumes (including vendor)
 ```
 
-### Permissions & Dependencies
+### Dependencies
 ```bash
-make fix-permissions # Fix file ownership to www-data (33:33) - requires sudo
-make composer-install # Manually install composer dependencies
+make composer-install # Manually install/update composer dependencies
 ```
 
 ### Development

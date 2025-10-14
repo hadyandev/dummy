@@ -36,16 +36,11 @@ help: ## Show this help message
 
 setup: ## Run initial setup (build and start containers)
 	@echo "$(GREEN)🚀 Running Docker setup...$(RESET)"
-	@echo "$(BLUE)� Fixing permissions on host...$(RESET)"
-	@sudo chown -R 33:33 . 2>/dev/null || { \
-		echo "$(YELLOW)⚠️  Cannot fix permissions with sudo, trying without...$(RESET)"; \
-		chown -R 33:33 . 2>/dev/null || echo "$(YELLOW)⚠️  Permission fix skipped$(RESET)"; \
-	}
-	@echo "$(BLUE)�📦 Building Docker images...$(RESET)"
+	@echo "$(BLUE)� Building Docker images...$(RESET)"
 	docker-compose build --no-cache app
 	@echo "$(BLUE)🐳 Starting containers...$(RESET)"
 	docker-compose up -d
-	@echo "$(BLUE)⏳ Waiting for database to be ready...$(RESET)"
+	@echo "$(BLUE)⏳ Waiting for containers to be ready...$(RESET)"
 	@sleep 10
 	@echo "$(BLUE)📊 Running migrations...$(RESET)"
 	docker-compose exec app php artisan migrate --force || echo "⚠️  Migration failed or already ran"
