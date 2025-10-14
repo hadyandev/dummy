@@ -35,6 +35,10 @@ RUN mkdir -p /var/www/vendor /var/www/bootstrap/cache /var/www/storage \
 
 # Install composer dependencies as www-data user
 USER www-data
+
+# Configure git to allow operations on any directory (fix ownership issues with volume mounts)
+RUN git config --global --add safe.directory '*'
+
 RUN composer install --optimize-autoloader --no-dev --no-interaction
 
 # Install npm dependencies and build assets
