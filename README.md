@@ -24,8 +24,6 @@ cp .env.example .env
 make setup
 ```
 
-**Application URL:** http://localhost:8090  
-**Database Port:** 5433 (PostgreSQL)
 
 ---
 
@@ -146,120 +144,12 @@ services:
       - 8.8.8.8         # Google DNS fallback
 ```
 
-**Note:** Docker internal DNS (127.0.0.11) is automatically included for service discovery (db, redis, etc).
-
----
-
-## 🐛 Troubleshooting
-
-### Container cannot resolve database hostname "db"
-
-**Problem:** Error "could not translate host name db"
-
-**Cause:** Custom DNS configuration might bypass Docker's internal DNS
-
-**Solution:** Ensure `docker-compose.yml` has `dns:` config (not mounted resolv.conf):
-```yaml
-services:
-  app:
-    dns:
-      - 172.30.100.125  # Custom DNS
-      - 8.8.8.8         # Fallback
-    # Don't mount resolv.conf - it breaks service discovery
-```
-
-### Permission errors
-
-**Problem:** Cannot write to storage or vendor
-
-**Solution:** Docker volumes handle permissions automatically. If you see errors:
-```bash
-make stop
-make clean
-make setup
-```
-
-### Composer install fails
-
-**Solution:**
-```bash
-make shell
-composer install
-```
-
-### View detailed logs
-
-```bash
-make logs           # All containers
-make logs-app       # Specific container
-```
-
----
-
-## 📦 Project Structure
-
-```
-dummy-izin/
-├── app/                    # Laravel application
-├── config/                 # Configuration files
-├── database/               # Migrations & seeders
-├── docker/                 # Docker configuration
-│   ├── nginx/             # Nginx config
-│   ├── php/               # PHP config
-│   └── scripts/           # Entrypoint scripts
-├── routes/                # Route definitions
-├── storage/               # Laravel storage (Docker volume)
-├── vendor/                # Composer deps (Docker volume)
-├── .env                   # Environment config
-├── docker-compose.yml     # Docker services
-└── Makefile              # Common commands
-```
-
----
-
-## 🔄 Development Workflow
-
-1. **Start containers:**
-   ```bash
-   make start
-   ```
-
-2. **Make code changes** (files are auto-synced via bind mount)
-
-3. **View logs:**
-   ```bash
-   make logs-app
-   ```
-
-4. **Run migrations:**
-   ```bash
-   make migrate
-   ```
-
-5. **Clear caches if needed:**
-   ```bash
-   make cache-clear
-   ```
-
-6. **Access container for debugging:**
-   ```bash
-   make shell
-   ```
-
 ---
 
 ## 📝 Notes
 
-- **No sudo required** - Docker volumes handle permissions
-- **Service discovery** - Use container names (`db`, `redis`) in configs
+- **No sudo required** - Docker volumes handle permissions automatically
+- **Service discovery** - Use container names (`db`, `redis`) in configs  
 - **Custom DNS** - Configured for external API access
 - **Auto-restart** - Containers restart automatically unless stopped
-
----
-
-## 📖 Additional Help
-
-```bash
-make help           # Show all available commands
-make info           # Show environment information
-```
+- **View detailed info** - Run `make info` to see current configuration
