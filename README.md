@@ -1,284 +1,265 @@
-# Laravel Docker Environment
+# Dummy Izin - Laravel Docker Environment
 
-A complete Laravel development environment using Docker with PostgreSQL, Nginx, Queue Workers, and Task Scheduler.
+Laravel application with Docker Compose setup including PostgreSQL, Nginx, Queue Workers, and Scheduler.
+
+---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-
 - Docker & Docker Compose installed
 - Git
 
-### One-Command Setup (NO SUDO REQUIRED!)
+### Setup
 
 ```bash
+# Clone repository
 git clone <repository-url>
 cd dummy-izin
 
-# Just run setup - that's it!
+# Copy environment file
+cp .env.example .env
+
+# Setup and start containers
 make setup
 ```
 
-**That's it!** Application will be available at http://localhost:8090
+**Application URL:** http://localhost:8090  
+**Database Port:** 5433 (PostgreSQL)
 
-### Why No Permission Fixes Needed?
+---
 
-**Vendor folder uses Docker named volume** instead of bind mount:
-- ✅ Docker manages the volume ownership automatically
-- ✅ www-data user always has write access
-- ✅ No sudo or chown needed on host
-- ✅ Source code stays on host for editing
-- ✅ Vendor doesn't clutter your Git repo
+## 📋 Available Commands
 
-**Architecture:**
-```
-Your Host Files    →  Container
-├── app/          →  /var/www/app/         (bind mount)
-├── routes/       →  /var/www/routes/      (bind mount)  
-├── config/       →  /var/www/config/      (bind mount)
-└── (no vendor)      /var/www/vendor/      (Docker volume)
-```
-
-### Alternative Setup Methods
-
-**Option 1: Using setup script**
+### Common Operations
 ```bash
-./setup.sh
+make setup          # Initial setup (build, start, migrate)
+make start          # Start all containers
+make stop           # Stop all containers
+make restart        # Restart containers
+make ps             # Show container status
+make info           # Show environment info
 ```
 
-**Option 2: Manual**
+### Logs
 ```bash
-docker-compose build --no-cache app
-docker-compose up -d
-docker-compose exec app php artisan migrate --force
+make logs           # View all container logs
+make logs-app       # App container only
+make logs-queue     # Queue worker only
+make logs-db        # Database only
+make logs-web       # Nginx webserver only
+make logs-scheduler # Scheduler only
 ```
-   docker-compose exec app php artisan migrate
-   docker-compose exec app php artisan key:generate
-   ```
 
-## 📊 Services
+### Development
+```bash
+make shell          # Access app container bash
+make tinker         # Laravel Tinker
+make test           # Run tests
+make migrate        # Run migrations
+make cache-clear    # Clear all caches
+```
 
-| Service | Description | URL/Port |
-|---------|-------------|----------|
-| **Laravel App** | Main Laravel application | http://localhost:8080 |
-| **PostgreSQL** | Database server | localhost:3306 (mapped from 5432) |
-| **Queue Worker** | Background job processor | - |
-| **Scheduler** | Cron job scheduler | - |
-| **Nginx** | Web server | http://localhost:8080 |
+### Laravel Artisan & Composer
+```bash
+make artisan CMD="migrate:status"
+make artisan CMD="make:controller UserController"
+make composer CMD="require package/name"
+```
+
+### Database
+```bash
+make db-shell       # Access PostgreSQL shell
+make migrate-fresh  # Fresh migration with seed
+```
+
+### Cleanup
+```bash
+make clean          # Remove containers and volumes
+```
+
+---
+
+## 🏗️ Architecture
+
+### Docker Volumes Strategy
+Uses **Docker named volumes** for dependency isolation:
+- ✅ `vendor/` - Composer dependencies (in Docker volume)
+- ✅ `storage/` - Laravel storage (in Docker volume)
+- ✅ `bootstrap/cache/` - Bootstrap cache (in Docker volume)
+- ✅ Source code - Bind mounted from host (editable)
+
+**Benefits:**
+- No permission issues (no sudo required)
+- Fast composer install
+- Clean Git repository
+- Easy development workflow
+
+### Services
+- **app** - PHP 8.2-FPM application container
+- **webserver** - Nginx web server
+- **db** - PostgreSQL 16 database
+- **queue** - Laravel queue worker
+- **scheduler** - Laravel task scheduler
+
+---
 
 ## 🔧 Configuration
 
 ### Environment Variables
 
-Key configuration options in `.env`:
+Key variables in `.env`:
 
-```env
+```bash
 # Application
-APP_URL=http://localhost:8080
+APP_URL=http://localhost:8090
+APP_ENV=local
+APP_DEBUG=true
 
 # Docker Ports
-WEBSERVER_PORT=8080
-DB_PORT=5432
+WEBSERVER_PORT=8090      # Host port for web access
+DB_PORT_EXTERNAL=5433    # Host port for database
 
-# Database (PostgreSQL)
-DB_CONNECTION=pgsql
-DB_HOST=db
-DB_PORT=5432
-DB_DATABASE=laravel
-DB_USERNAME=laravel
-DB_PASSWORD=laravel
+# Database (container network)
+DB_HOST=db               # Use container name
+DB_PORT=5432             # Internal container port
+DB_DATABASE=dummy
+DB_USERNAME=dummy
+DB_PASSWORD=dummy
 
-# User Permissions (Auto-detected by setup.sh)
-UID=1000
-GID=1000
+# OSSHUB Integration
+OSSHUB_ENDPOINT=http://localhost:9000/api/v1/
+OSSHUB_USERNAME=your_username
+OSSHUB_PASSWORD=your_password
 ```
 
-### Port Configuration
+### DNS Configuration
 
-- **Web**: `WEBSERVER_PORT` (default: 8080)
-- **Database**: `DB_PORT` (default: 5432, mapped to 3306 for compatibility)
+If you encounter DNS resolution issues from containers, the setup includes custom DNS configuration:
 
-## 🗄️ Database Access
-
-Connect to PostgreSQL using any database client:
-
-```
-Host: localhost
-Port: 3306 (mapped port)  
-Database: laravel
-Username: laravel
-Password: laravel
-Driver: PostgreSQL
+```yaml
+# docker-compose.yml
+services:
+  app:
+    dns:
+      - 172.30.100.125  # Custom DNS (if needed)
+      - 8.8.8.8         # Google DNS fallback
 ```
 
-## 🛠️ Development Commands
+**Note:** Docker internal DNS (127.0.0.11) is automatically included for service discovery (db, redis, etc).
 
-### Container Management
+---
+
+## 🐛 Troubleshooting
+
+### Container cannot resolve database hostname "db"
+
+**Problem:** Error "could not translate host name db"
+
+**Cause:** Custom DNS configuration might bypass Docker's internal DNS
+
+**Solution:** Ensure `docker-compose.yml` has `dns:` config (not mounted resolv.conf):
+```yaml
+services:
+  app:
+    dns:
+      - 172.30.100.125  # Custom DNS
+      - 8.8.8.8         # Fallback
+    # Don't mount resolv.conf - it breaks service discovery
+```
+
+### Permission errors
+
+**Problem:** Cannot write to storage or vendor
+
+**Solution:** Docker volumes handle permissions automatically. If you see errors:
 ```bash
-# Start containers
-docker-compose up -d
-
-# Stop containers
-docker-compose down
-
-# View logs
-docker-compose logs -f
-
-# Restart specific service
-docker-compose restart app
+make stop
+make clean
+make setup
 ```
 
-### Laravel Commands
+### Composer install fails
+
+**Solution:**
 ```bash
-# Access container shell
-docker-compose exec app bash
-
-# Run artisan commands
-docker-compose exec app php artisan migrate
-docker-compose exec app php artisan make:controller UserController
-
-# Clear caches
-docker-compose exec app php artisan config:clear
+make shell
+composer install
 ```
 
-## 🔒 Permission Handling
-
-This setup automatically handles permission issues across different hosts:
-
-1. **Automatic Detection**: Setup script detects your UID/GID
-2. **Dynamic User Creation**: Container creates user with matching UID/GID  
-3. **Proper Ownership**: Files maintain correct ownership between host and container
-4. **Cross-Platform**: Works on Linux, macOS, and Windows (WSL)
-
-### Troubleshooting Permissions
-
-If you encounter permission issues:
+### View detailed logs
 
 ```bash
-# Re-run setup script
-./setup.sh
-
-# Or manually fix permissions
-sudo chown -R $(id -u):$(id -g) .
-chmod -R 775 storage bootstrap/cache
-```
-
-## 📱 API Endpoints
-
-### Public Endpoints
-- `GET /api/status` - API health check
-- `GET /api/health` - Application health check  
-- `POST /api/osshub-login` - Login endpoint
-
-### Protected Endpoints (require authentication)
-- `GET /api/user` - Get authenticated user
-
-## 🆘 Troubleshooting
-
-### Common Issues
-
-**Permission Denied Errors:**
-```bash
-# Quick fix for container permissions
-make fix-permissions
-
-# Fix host file ownership issues (when files owned by root)
-make fix-ownership
-# or
-./fix-ownership.sh
-
-# Or manual fix for containers
-docker-compose exec app chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
-docker-compose exec app chmod -R 775 /var/www/storage /var/www/bootstrap/cache
-
-# Re-run full setup if needed
-./setup.sh
-```
-
-**File Ownership Issues (Cannot Save Files):**
-```bash
-# When VS Code shows "cannot save file" or files owned by root
-make fix-ownership
-
-# Or check file ownership
-ls -la app/
-# If files show 'root root', run:
-sudo chown -R $(id -u):$(id -g) .
-```
-
-**Laravel View Compilation Issues:**
-```bash
-# Clear view cache and fix permissions
-make clear-cache
-make fix-permissions
-```
-
-**Database Connection Failed:**
-```bash
-docker-compose restart db
-docker-compose exec app php artisan config:clear
-```
-
-**Port Already in Use:**
-```bash
-# Change ports in .env
-WEBSERVER_PORT=8081
-DB_PORT=5433
+make logs           # All containers
+make logs-app       # Specific container
 ```
 
 ---
 
-**Made with ❤️ for Laravel development**
+## 📦 Project Structure
 
-## About Laravel
+```
+dummy-izin/
+├── app/                    # Laravel application
+├── config/                 # Configuration files
+├── database/               # Migrations & seeders
+├── docker/                 # Docker configuration
+│   ├── nginx/             # Nginx config
+│   ├── php/               # PHP config
+│   └── scripts/           # Entrypoint scripts
+├── routes/                # Route definitions
+├── storage/               # Laravel storage (Docker volume)
+├── vendor/                # Composer deps (Docker volume)
+├── .env                   # Environment config
+├── docker-compose.yml     # Docker services
+└── Makefile              # Common commands
+```
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 🔄 Development Workflow
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+1. **Start containers:**
+   ```bash
+   make start
+   ```
 
-## Learning Laravel
+2. **Make code changes** (files are auto-synced via bind mount)
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+3. **View logs:**
+   ```bash
+   make logs-app
+   ```
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+4. **Run migrations:**
+   ```bash
+   make migrate
+   ```
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+5. **Clear caches if needed:**
+   ```bash
+   make cache-clear
+   ```
 
-## Laravel Sponsors
+6. **Access container for debugging:**
+   ```bash
+   make shell
+   ```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+---
 
-### Premium Partners
+## 📝 Notes
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+- **No sudo required** - Docker volumes handle permissions
+- **Service discovery** - Use container names (`db`, `redis`) in configs
+- **Custom DNS** - Configured for external API access
+- **Auto-restart** - Containers restart automatically unless stopped
 
-## Contributing
+---
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## 📖 Additional Help
 
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```bash
+make help           # Show all available commands
+make info           # Show environment information
+```
