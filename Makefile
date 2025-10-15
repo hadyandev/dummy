@@ -38,8 +38,16 @@ setup: ## Initial setup (build, start, migrate)
 	docker-compose exec app php artisan migrate --force || true
 	@echo ""
 	@echo "Setup complete!"
-	@echo "Application: http://localhost:$${WEBSERVER_PORT:-8090}"
-	@echo "Database: PostgreSQL on port $${DB_PORT_EXTERNAL:-5433}"
+	@if [ -f .env ]; then \
+		WEBSERVER_PORT=$$(grep "^WEBSERVER_PORT=" .env | cut -d'=' -f2 | tr -d ' '); \
+		DB_PORT_EXTERNAL=$$(grep "^DB_PORT_EXTERNAL=" .env | cut -d'=' -f2 | tr -d ' '); \
+		APP_URL=$$(grep "^APP_URL=" .env | cut -d'=' -f2 | tr -d ' '); \
+		echo "Application: $${APP_URL:-http://localhost:$${WEBSERVER_PORT:-8090}}"; \
+		echo "Database: PostgreSQL on port $${DB_PORT_EXTERNAL:-5433}"; \
+	else \
+		echo "Application: http://localhost:8090"; \
+		echo "Database: PostgreSQL on port 5433"; \
+	fi
 
 start: ## Start containers
 	@echo "=> Starting containers..."
@@ -119,7 +127,13 @@ cache-clear: ## Clear all Laravel caches
 	docker-compose exec app php artisan view:clear
 
 db-shell: ## Access database shell
-	docker-compose exec db psql -U $${DB_USERNAME:-dummy} -d $${DB_DATABASE:-dummy}
+	@if [ -f .env ]; then \
+		DB_USERNAME=$$(grep "^DB_USERNAME=" .env | cut -d'=' -f2 | tr -d ' '); \
+		DB_DATABASE=$$(grep "^DB_DATABASE=" .env | cut -d'=' -f2 | tr -d ' '); \
+		docker-compose exec db psql -U $${DB_USERNAME:-dummy} -d $${DB_DATABASE:-dummy}; \
+	else \
+		docker-compose exec db psql -U dummy -d dummy; \
+	fi
 
 clean: ## Remove containers and volumes
 	@echo "=> Cleaning up..."
@@ -129,10 +143,24 @@ info: ## Show application info
 	@echo ""
 	@echo "=== Dummy Izin Environment ==="
 	@echo ""
-	@echo "Application: http://localhost:$${WEBSERVER_PORT:-8090}"
-	@echo "Database: localhost:$${DB_PORT_EXTERNAL:-5433}"
-	@echo "DB Name: $${DB_DATABASE:-dummy}"
-	@echo "DB User: $${DB_USERNAME:-dummy}"
+	@if [ -f .env ]; then \
+		WEBSERVER_PORT=$$(grep "^WEBSERVER_PORT=" .env | cut -d'=' -f2 | tr -d ' '); \
+		DB_PORT_EXTERNAL=$$(grep "^DB_PORT_EXTERNAL=" .env | cut -d'=' -f2 | tr -d ' '); \
+		DB_DATABASE=$$(grep "^DB_DATABASE=" .env | cut -d'=' -f2 | tr -d ' '); \
+		DB_USERNAME=$$(grep "^DB_USERNAME=" .env | cut -d'=' -f2 | tr -d ' '); \
+		APP_URL=$$(grep "^APP_URL=" .env | cut -d'=' -f2 | tr -d ' '); \
+		echo "Application: $${APP_URL:-http://localhost:$${WEBSERVER_PORT:-8090}}"; \
+		echo "Database: localhost:$${DB_PORT_EXTERNAL:-5433}"; \
+		echo "DB Name: $${DB_DATABASE:-dummy}"; \
+		echo "DB User: $${DB_USERNAME:-dummy}"; \
+	else \
+		echo "Application: http://localhost:8090 (default)"; \
+		echo "Database: localhost:5433 (default)"; \
+		echo "DB Name: dummy (default)"; \
+		echo "DB User: dummy (default)"; \
+		echo ""; \
+		echo "⚠️  .env file not found. Run: cp .env.example .env"; \
+	fi
 	@echo ""
 	@echo "Container Status:"
 	@docker-compose ps
