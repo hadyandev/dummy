@@ -15,6 +15,7 @@ services:
       - storage:/var/www/storage                  # Storage in Docker volume
       - bootstrap_cache:/var/www/bootstrap/cache  # Bootstrap cache in Docker volume
       - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+      - ./docker/config/resolv.conf:/etc/resolv.conf:ro  # Custom DNS config
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
@@ -64,6 +65,7 @@ services:
       - storage:/var/www/storage                  # Share storage volume
       - bootstrap_cache:/var/www/bootstrap/cache  # Share bootstrap cache volume
       - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+      - ./docker/config/resolv.conf:/etc/resolv.conf:ro  # Custom DNS config
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command: sh -c "sleep 10 && /usr/local/bin/entrypoint.sh php artisan queue:work --verbose --tries=3 --timeout=90 --sleep=3 --max-jobs=1000 --max-time=3600"
@@ -87,6 +89,7 @@ services:
       - storage:/var/www/storage                  # Share storage volume
       - bootstrap_cache:/var/www/bootstrap/cache  # Share bootstrap cache volume
       - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+      - ./docker/config/resolv.conf:/etc/resolv.conf:ro  # Custom DNS config
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command: sh -c "/usr/local/bin/entrypoint.sh sh -c 'while true; do php artisan schedule:run --verbose --no-interaction & sleep 60; done'"
